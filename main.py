@@ -1,239 +1,98 @@
-from flask import Flask, render_template_string
+from flask import Flask, request, render_template, redirect
+import sqlite3
 
 app = Flask(__name__)
 
-html_template = """
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecuritasRol Pro</title>
-    <!-- Add any CSS styles here if needed -->
-    <style>
-        /* Basic styling for layout */
-        body { font-family: Arial, sans-serif; }
-        nav { background-color: #f0f0f0; padding: 10px; }
-        section { margin: 20px; }
-        .dashboard-stats { display: flex; justify-content: space-around; }
-        .stat { text-align: center; border: 1px solid #ddd; padding: 10px; width: 20%; }
-        form { margin-top: 20px; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>SecuritasRol Pro</h1>
-    </header>
-    
-    <nav>
-        <ul>
-            <li><a href="#dashboard">Dashboard</a></li>
-            <li><a href="#consultas">Consultas</a></li>
-            <li><a href="#gestiones">Gestiones</a></li>
-        </ul>
-    </nav>
-    
-    <section id="dashboard">
-        <h2>Dashboard de Control</h2>
-        <p>Monitoreo integral de turnos y asignaciones de seguridad</p>
-        
-        <div class="dashboard-stats">
-            <div class="stat">
-                <h3>0</h3>
-                <p>Instalaciones</p>
-            </div>
-            <div class="stat">
-                <h3>0</h3>
-                <p>Guardias</p>
-            </div>
-            <div class="stat">
-                <h3>0</h3>
-                <p>En Servicio Hoy</p>
-            </div>
-            <div class="stat">
-                <h3>0</h3>
-                <p>Disponibles</p>
-            </div>
-        </div>
-        
-        <div>
-            <h3>Resumen de Estado Actual</h3>
-            <form>
-                <label>Filtrar por Instalación:</label>
-                <select>
-                    <option>Todas</option>
-                </select>
-                
-                <label>Filtrar por Estado:</label>
-                <select>
-                    <option>Todos</option>
-                    <option>Trabajando</option>
-                    <option>Libre</option>
-                    <option>Turno Extra</option>
-                    <option>Licencia Médica</option>
-                    <option>Vacaciones</option>
-                    <option>Inducción</option>
-                    <option>Falta</option>
-                    <option>Permiso con Goce</option>
-                    <option>Permiso sin Goce</option>
-                </select>
-            </form>
-        </div>
-    </section>
-    
-    <section id="consultas">
-        <h2>Centro de Consultas</h2>
-        <p>Consulta proyecciones, horarios y estadísticas de guardias e instalaciones</p>
-        
-        <div>
-            <h3>Consulta por Guardia</h3>
-            <form>
-                <label>Nombre del Guardia:</label>
-                <input type="text">
-                
-                <label>Desde Fecha:</label>
-                <input type="date">
-                
-                <label>Hasta Fecha:</label>
-                <input type="date">
-                
-                <button type="submit">Consultar</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>Consulta por Instalación</h3>
-            <form>
-                <label>Seleccionar Instalación:</label>
-                <select></select>
-                
-                <label>Desde Fecha:</label>
-                <input type="date">
-                
-                <label>Hasta Fecha:</label>
-                <input type="date">
-                
-                <button type="submit">Consultar</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>Estadísticas por Guardia</h3>
-            <form>
-                <label>Nombre del Guardia:</label>
-                <input type="text">
-                
-                <label>Mes y Año:</label>
-                <input type="month">
-                
-                <button type="submit">Consultar Estadísticas</button>
-            </form>
-        </div>
-    </section>
-    
-    <section id="gestiones">
-        <h2>Centro de Gestiones</h2>
-        <p>Administra instalaciones, guardias y eventos</p>
-        
-        <div>
-            <h3>Gestionar Instalaciones</h3>
-            <form>
-                <label>Nombre de la Instalación:</label>
-                <input type="text">
-                
-                <button type="submit">Registrar Instalación</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>Gestionar Guardias</h3>
-            <form>
-                <label>Nombre del Guardia:</label>
-                <input type="text">
-                
-                <label>Número de Teléfono:</label>
-                <input type="tel">
-                
-                <label>Instalación Asignada:</label>
-                <select></select>
-                
-                <label>Tipo de Turno:</label>
-                <select>
-                    <option>4x4 (4 días servicio, 4 días libres)</option>
-                    <option>6x1 (6 días servicio, 1 día libre)</option>
-                    <option>7x7 (7 días servicio, 7 días libres)</option>
-                    <option>5x2 (5 días servicio, 2 días libres)</option>
-                </select>
-                
-                <label>Fecha de Inicio:</label>
-                <input type="date">
-                
-                <button type="submit">Registrar Guardia</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>Gestionar Eventos de Guardias</h3>
-            <form>
-                <label>Seleccionar Guardia:</label>
-                <select></select>
-                
-                <label>Tipo de Evento:</label>
-                <select>
-                    <option>Seleccione...</option>
-                    <option>Licencia Médica</option>
-                    <option>Vacaciones</option>
-                    <option>Falta</option>
-                    <option>Inducción</option>
-                    <option>Permiso con Goce</option>
-                    <option>Permiso sin Goce</option>
-                    <option>Turno Extra</option>
-                </select>
-                
-                <label>Desde Fecha:</label>
-                <input type="date">
-                
-                <label>Hasta Fecha:</label>
-                <input type="date">
-                
-                <button type="submit">Registrar Evento</button>
-            </form>
-        </div>
-        
-        <div>
-            <h3>Cambiar Rol de Guardia</h3>
-            <form>
-                <label>Seleccionar Guardia:</label>
-                <select></select>
-                
-                <label>Nuevo Tipo de Turno:</label>
-                <select>
-                    <option>Seleccione...</option>
-                    <option>4x4 (4 días servicio, 4 días libres)</option>
-                    <option>6x1 (6 días servicio, 1 día libre)</option>
-                    <option>7x7 (7 días servicio, 7 días libres)</option>
-                    <option>5x2 (5 días servicio, 2 días libres)</option>
-                </select>
-                
-                <label>Nueva Instalación (opcional):</label>
-                <select>
-                    <option>No cambiar</option>
-                </select>
-                
-                <label>Fecha de Cambio:</label>
-                <input type="date">
-                
-                <button type="submit">Cambiar Rol</button>
-            </form>
-        </div>
-    </section>
-</body>
-</html>
-"""
+DB_PATH = 'secrol.db'
+
+def get_db():
+    return sqlite3.connect(DB_PATH)
+
+def create_tables():
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS instalaciones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS guardias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            telefono TEXT,
+            instalacion_id INTEGER,
+            tipo_turno TEXT,
+            fecha_inicio TEXT,
+            FOREIGN KEY (instalacion_id) REFERENCES instalaciones(id)
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS eventos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guardia_id INTEGER,
+            tipo_evento TEXT,
+            desde_fecha TEXT,
+            hasta_fecha TEXT,
+            FOREIGN KEY (guardia_id) REFERENCES guardias(id)
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            accion TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.commit()
+
+create_tables()
 
 @app.route('/')
 def home():
-    return render_template_string(html_template)
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('SELECT * FROM instalaciones')
+        instalaciones = c.fetchall()
+        c.execute('SELECT * FROM guardias')
+        guardias = c.fetchall()
+    return render_template("index.html", instalaciones=instalaciones, guardias=guardias)
+
+@app.route('/add_instalacion', methods=['POST'])
+def add_instalacion():
+    nombre = request.form['nombre']
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('INSERT INTO instalaciones (nombre) VALUES (?)', (nombre,))
+        c.execute('INSERT INTO logs (accion) VALUES (?)', (f"Agregada instalación: {nombre}",))
+        conn.commit()
+    return redirect('/')
+
+@app.route('/add_guardia', methods=['POST'])
+def add_guardia():
+    nombre = request.form['nombre']
+    telefono = request.form.get('telefono')
+    instalacion_id = request.form.get('instalacion_id') or None
+    tipo_turno = request.form.get('tipo_turno')
+    fecha_inicio = request.form.get('fecha_inicio')
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO guardias (nombre, telefono, instalacion_id, tipo_turno, fecha_inicio)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (nombre, telefono, instalacion_id, tipo_turno, fecha_inicio))
+        c.execute('INSERT INTO logs (accion) VALUES (?)', (f"Agregado guardia: {nombre}",))
+        conn.commit()
+    return redirect('/')
+
+@app.route('/add_evento', methods=['POST'])
+def add_evento():
+    guardia_id = request.form.get('guardia_id')
+    tipo_evento = request.form.get('tipo_evento')
+    desde_fecha = request.form.get('desde_fecha')
+    hasta_fecha = request.form.get('hasta_fecha')
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO eventos (guardia_id, tipo_evento, desde_fecha, hasta_fecha)
+            VALUES (?, ?, ?, ?)
+        ''', (guardia_id, tipo_evento, desde_fecha, hasta_fecha))
+        c.execute('INSERT INTO logs (accion) VALUES (?)', (f"Agregado evento: {tipo_evento} para guardia id {guardia_id}",))
+        conn.commit()
+    return redirect('/')
 
 if __name__ == '__main__':
     app.run(debug=True)
