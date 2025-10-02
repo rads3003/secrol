@@ -198,7 +198,7 @@
             padding: 0.5rem;
             display: inline-block;
         }
-        .estado-vacacion {
+        .estado-vacaciones {
             background: linear-gradient(135deg, #e2e3e5, #d6d8db);
             color: #383d41;
             font-weight: 600;
@@ -233,6 +233,14 @@
         .estado-turno-extra {
             background: linear-gradient(135deg, #d3adf7, #b37feb);
             color: #4c1d95;
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 0.5rem;
+            display: inline-block;
+        }
+        .estado-induccion {
+            background: linear-gradient(135deg, #cce5ff, #b3d4ff);
+            color: #004085;
             font-weight: 600;
             border-radius: 10px;
             padding: 0.5rem;
@@ -585,13 +593,13 @@
                                         <label for="tipoEvento" class="form-label">Tipo de Evento:</label>
                                         <select class="form-select" id="tipoEvento" required>
                                             <option value="" disabled selected>Seleccione...</option>
-                                            <option value="licencia">Licencia Médica</option>
-                                            <option value="vacacion">Vacaciones</option>
-                                            <option value="falta">Falta</option>
+                                            <option value="Licencia Médica">Licencia Médica</option>
+                                            <option value="Vacaciones">Vacaciones</option>
+                                            <option value="Falta">Falta</option>
                                             <option value="Inducción">Inducción</option>
-                                            <option value="permiso_con_goce">Permiso con Goce</option>
-                                            <option value="permiso_sin_goce">Permiso sin Goce</option>
-                                            <option value="turno_extra">Turno Extra</option>
+                                            <option value="Permiso con Goce">Permiso con Goce</option>
+                                            <option value="Permiso sin Goce">Permiso sin Goce</option>
+                                            <option value="Turno Extra">Turno Extra</option>
                                         </select>
                                     </div>
                                     <div class="mb-3">
@@ -654,8 +662,8 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // URL de la web app de Apps Script
-        const API_URL = 'https://script.google.com/macros/s/AKfycbx6a_1-jm7AzB3YlRe79dsrmmT6PBM_lzyXM5Bi_63gFjJ6DNM3W_bjR8JOdRhcOSLxzw/exec'; // Reemplaza con la URL real de tu Apps Script deployado
+        // Reemplaza con la URL REAL de tu web app desplegada en Google Apps Script
+        const API_URL = 'https://script.google.com/macros/s/AKfycbx6a_1-jm7AzB3YlRe79dsrmmT6PBM_lzyXM5Bi_63gFjJ6DNM3W_bjR8JOdRhcOSLxzw/exec'; // <--- CAMBIA ESTO POR TU URL
 
         // Almacenamiento de datos (en memoria, cargados desde Sheets)
         let instalaciones = [];
@@ -672,7 +680,7 @@
         // Cargar datos desde Sheets
         async function cargarDatosDesdeSheets() {
             try {
-                // Obtener instalaciones
+                console.log('Cargando instalaciones...');
                 const resInst = await fetch(`${API_URL}?action=getInstalaciones`);
                 const dataInst = await resInst.json();
                 if (dataInst.success) {
@@ -680,23 +688,30 @@
                     // Map de nombres a IDs
                     window.instalacionesMap = new Map(dataInst.data.map(d => [d.nombre, d.id]));
                     window.instalacionesIdToName = new Map(dataInst.data.map(d => [d.id, d.nombre]));
+                    console.log('Instalaciones cargadas:', instalaciones);
+                } else {
+                    console.error('Error al cargar instalaciones:', dataInst.message);
                 }
 
-                // Obtener guardias (incluye eventos)
+                console.log('Cargando guardias...');
                 const resGuard = await fetch(`${API_URL}?action=getGuardias`);
                 const dataGuard = await resGuard.json();
                 if (dataGuard.success) {
                     guardias = dataGuard.data;
+                    console.log('Guardias cargados:', guardias);
+                } else {
+                    console.error('Error al cargar guardias:', dataGuard.message);
                 }
 
                 actualizarListas();
                 updateDashboard();
             } catch (error) {
+                console.error('Error al cargar datos desde la base:', error);
                 showNotification('Error al cargar datos desde la base: ' + error.message, 'danger');
             }
         }
 
-        // Inicializar listeners para botones de eliminación
+        // Inicializar listeners para botones de eliminación y filtros
         function initEventListeners() {
             const listaInstalaciones = document.getElementById('listaInstalaciones');
             const listaGuardias = document.getElementById('listaGuardias');
@@ -720,6 +735,9 @@
                     }
                 });
             }
+            // Listeners para filtros en dashboard
+            document.getElementById('filtroInstalacion').addEventListener('change', mostrarResumenHoy);
+            document.getElementById('filtroEstado').addEventListener('change', mostrarResumenHoy);
         }
 
         // Navegación entre pantallas
@@ -802,24 +820,14 @@
             if (filtroEstado) {
                 filteredGuardias = filteredGuardias.filter(g => {
                     const estado = calcularEstadoGuardia(g, today);
-                    return estado === filtroEstado;
+                    return estado.includes(filtroEstado);
                 });
             }
             let html = '<div class="table-responsive" style="max-height: 450px; overflow-y: auto;"><table class="table table-hover">';
             html += '<thead><tr><th>Guardia</th><th>Teléfono</th><th>Instalación</th><th>Tipo Turno</th><th>Estado Hoy</th></tr></thead><tbody>';
             filteredGuardias.forEach(guardia => {
                 const estado = calcularEstadoGuardia(guardia, today);
-                let claseEstado;
-                if (estado.includes('Trabajando')) claseEstado = 'estado-trabajando';
-                else if (estado.includes('Libre')) claseEstado = 'estado-libre';
-                else if (estado.includes('Licencia')) claseEstado = 'estado-licencia';
-                else if (estado.includes('Vacacion')) claseEstado = 'estado-vacacion';
-                else if (estado.includes('Falta')) claseEstado = 'estado-falta';
-                else if (estado.includes('Permiso con Goce')) claseEstado = 'estado-permiso-con-goce';
-                else if (estado.includes('Permiso sin Goce')) claseEstado = 'estado-permiso-sin-goce';
-                else if (estado.includes('Turno Extra')) claseEstado = 'estado-turno-extra';
-                else claseEstado = 'estado-libre';
-
+                const claseEstado = getEstadoClass(estado);
                 const instalacionNombre = window.instalacionesIdToName.get(guardia.idInstalacion) || 'Desconocida';
                
                 html += `<tr>
@@ -836,6 +844,18 @@
             const selectFiltroInstalacion = document.getElementById('filtroInstalacion');
             selectFiltroInstalacion.innerHTML = '<option value="">Todas</option>' +
                 instalaciones.map(i => `<option value="${i}">${i}</option>`).join('');
+        }
+        function getEstadoClass(estado) {
+            if (estado.includes('Trabajando')) return 'estado-trabajando';
+            if (estado.includes('Libre')) return 'estado-libre';
+            if (estado.includes('Turno Extra')) return 'estado-turno-extra';
+            if (estado.includes('Licencia Médica')) return 'estado-licencia';
+            if (estado.includes('Vacaciones')) return 'estado-vacaciones';
+            if (estado.includes('Inducción')) return 'estado-induccion';
+            if (estado.includes('Falta')) return 'estado-falta';
+            if (estado.includes('Permiso con Goce')) return 'estado-permiso-con-goce';
+            if (estado.includes('Permiso sin Goce')) return 'estado-permiso-sin-goce';
+            return 'estado-libre';
         }
         // Actualizar listas
         function actualizarListas() {
@@ -945,11 +965,14 @@
                     mensajeConfirmacion += `\nEsto también eliminará ${guardiasAsignados.length} guardia(s) asignado(s) a esta instalación.`;
                 }
                 if (confirm(mensajeConfirmacion)) {
-                    const res = await fetch(API_URL, {
+                    console.log('Eliminando instalación ID:', id);
+                    const res = await fetch(`${API_URL}?action=eliminarInstalacion`, {
                         method: 'POST',
-                        body: JSON.stringify({ action: 'eliminarInstalacion', id })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id })
                     });
                     const data = await res.json();
+                    console.log('Respuesta de eliminación:', data);
                     if (data.success) {
                         await cargarDatosDesdeSheets();
                         showNotification(`Instalación eliminada correctamente${guardiasAsignados.length > 0 ? ' junto con sus guardias asociados' : ''}.`, 'success');
@@ -958,19 +981,22 @@
                     }
                 }
             } catch (error) {
-                showNotification('Error al eliminar la instalación.', 'danger');
                 console.error('Error en eliminarInstalacion:', error);
+                showNotification('Error al eliminar la instalación: ' + error.message, 'danger');
             }
         }
         async function eliminarGuardia(id) {
             try {
                 const guardia = guardias.find(g => g.id === id);
                 if (confirm(`¿Está seguro de eliminar al guardia "${guardia.nombre}"?`)) {
-                    const res = await fetch(API_URL, {
+                    console.log('Eliminando guardia ID:', id);
+                    const res = await fetch(`${API_URL}?action=eliminarGuardia`, {
                         method: 'POST',
-                        body: JSON.stringify({ action: 'eliminarGuardia', id })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id })
                     });
                     const data = await res.json();
+                    console.log('Respuesta de eliminación:', data);
                     if (data.success) {
                         await cargarDatosDesdeSheets();
                         showNotification(`Guardia "${guardia.nombre}" eliminado correctamente.`, 'success');
@@ -979,8 +1005,8 @@
                     }
                 }
             } catch (error) {
-                showNotification('Error al eliminar el guardia.', 'danger');
                 console.error('Error en eliminarGuardia:', error);
+                showNotification('Error al eliminar el guardia: ' + error.message, 'danger');
             }
         }
         // Registro de instalaciones
@@ -999,11 +1025,14 @@
             }
            
             try {
-                const res = await fetch(API_URL, {
+                console.log('Registrando instalación:', nombre);
+                const res = await fetch(`${API_URL}?action=registrarInstalacion`, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'registrarInstalacion', nombre })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre })
                 });
                 const data = await res.json();
+                console.log('Respuesta de registro:', data);
                 if (data.success) {
                     await cargarDatosDesdeSheets();
                     document.getElementById('formInstalacion').reset();
@@ -1012,7 +1041,8 @@
                     showNotification(data.message, 'danger');
                 }
             } catch (error) {
-                showNotification('Error al registrar instalación.', 'danger');
+                console.error('Error al registrar instalación:', error);
+                showNotification('Error al registrar instalación: ' + error.message, 'danger');
             }
         });
         // Registro de guardias
@@ -1037,11 +1067,14 @@
             }
            
             try {
-                const res = await fetch(API_URL, {
+                console.log('Registrando guardia:', { nombre, telefono, idInstalacion, tipoRol, fechaInicio });
+                const res = await fetch(`${API_URL}?action=registrarGuardia`, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'registrarGuardia', nombre, telefono, idInstalacion, tipoRol, fechaInicio })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, telefono, idInstalacion, tipoRol, fechaInicio })
                 });
                 const data = await res.json();
+                console.log('Respuesta de registro:', data);
                 if (data.success) {
                     await cargarDatosDesdeSheets();
                     document.getElementById('formGuardia').reset();
@@ -1051,7 +1084,8 @@
                     showNotification(data.message, 'danger');
                 }
             } catch (error) {
-                showNotification('Error al registrar guardia.', 'danger');
+                console.error('Error al registrar guardia:', error);
+                showNotification('Error al registrar guardia: ' + error.message, 'danger');
             }
         });
         // Registro de eventos para guardias
@@ -1082,11 +1116,14 @@
             const idGuardia = guardia.id;
            
             try {
-                const res = await fetch(API_URL, {
+                console.log('Registrando evento:', { idGuardia, tipo, desde, hasta });
+                const res = await fetch(`${API_URL}?action=registrarEvento`, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'registrarEvento', idGuardia, tipo, desde, hasta })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idGuardia, tipo, desde, hasta })
                 });
                 const data = await res.json();
+                console.log('Respuesta de registro:', data);
                 if (data.success) {
                     await cargarDatosDesdeSheets();
                     document.getElementById('formEventoGuardia').reset();
@@ -1096,7 +1133,8 @@
                     showNotification(data.message, 'danger');
                 }
             } catch (error) {
-                showNotification('Error al registrar evento.', 'danger');
+                console.error('Error al registrar evento:', error);
+                showNotification('Error al registrar evento: ' + error.message, 'danger');
             }
         });
         // Cambiar rol de turno a guardia
@@ -1121,23 +1159,29 @@
             }
            
             const idGuardia = guardia.id;
+            const data = { idGuardia, nuevoTipoRol, fechaCambio };
+            if (nuevaIdInstalacion) data.nuevaIdInstalacion = nuevaIdInstalacion;
            
             try {
-                const res = await fetch(API_URL, {
+                console.log('Cambiando rol:', data);
+                const res = await fetch(`${API_URL}?action=cambiarRol`, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'cambiarRol', idGuardia, nuevoTipoRol, nuevaIdInstalacion, fechaCambio })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
-                const data = await res.json();
-                if (data.success) {
+                const result = await res.json();
+                console.log('Respuesta de cambio de rol:', result);
+                if (result.success) {
                     await cargarDatosDesdeSheets();
                     document.getElementById('formCambiarRol').reset();
                     setDefaultDates();
                     showNotification(`Rol cambiado para "${guardia.nombre}".`, 'success');
                 } else {
-                    showNotification(data.message, 'danger');
+                    showNotification(result.message, 'danger');
                 }
             } catch (error) {
-                showNotification('Error al cambiar rol.', 'danger');
+                console.error('Error al cambiar rol:', error);
+                showNotification('Error al cambiar rol: ' + error.message, 'danger');
             }
         });
         // Función para calcular estado de guardia
@@ -1168,7 +1212,7 @@
                 const hasta = new Date(evento.hasta);
                
                 if (fechaConsulta >= desde && fechaConsulta <= hasta) {
-                    const estadoEvento = evento.tipo.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                    const estadoEvento = evento.tipo;
                     return estadoEvento === 'Turno Extra' ? 'Turno Extra' : `En ${estadoEvento}`;
                 }
             }
@@ -1199,11 +1243,13 @@
             const estadisticas = {
                 trabajados: 0,
                 libres: 0,
-                licencia: 0,
-                turno_extra: 0,
+                licencia_medica: 0,
+                vacaciones: 0,
+                induccion: 0,
                 falta: 0,
                 permiso_con_goce: 0,
-                permiso_sin_goce: 0
+                permiso_sin_goce: 0,
+                turno_extra: 0
             };
             proyeccion.forEach(p => {
                 if (p.estado.includes('Trabajando') || p.estado.includes('Turno Extra')) {
@@ -1213,8 +1259,12 @@
                     }
                 } else if (p.estado.includes('Libre')) {
                     estadisticas.libres++;
-                } else if (p.estado.includes('Licencia')) {
-                    estadisticas.licencia++;
+                } else if (p.estado.includes('Licencia Médica')) {
+                    estadisticas.licencia_medica++;
+                } else if (p.estado.includes('Vacaciones')) {
+                    estadisticas.vacaciones++;
+                } else if (p.estado.includes('Inducción')) {
+                    estadisticas.induccion++;
                 } else if (p.estado.includes('Falta')) {
                     estadisticas.falta++;
                 } else if (p.estado.includes('Permiso con Goce')) {
@@ -1262,11 +1312,13 @@
                                 <tbody>
                                     <tr><td>Días Trabajados</td><td>${estadisticas.trabajados}</td></tr>
                                     <tr><td>Días Libres</td><td>${estadisticas.libres}</td></tr>
-                                    <tr><td>Licencias Médicas</td><td>${estadisticas.licencia}</td></tr>
-                                    <tr><td>Turnos Extras</td><td>${estadisticas.turno_extra}</td></tr>
+                                    <tr><td>Licencias Médicas</td><td>${estadisticas.licencia_medica}</td></tr>
+                                    <tr><td>Vacaciones</td><td>${estadisticas.vacaciones}</td></tr>
+                                    <tr><td>Inducciones</td><td>${estadisticas.induccion}</td></tr>
                                     <tr><td>Faltas</td><td>${estadisticas.falta}</td></tr>
                                     <tr><td>Permisos con Goce</td><td>${estadisticas.permiso_con_goce}</td></tr>
                                     <tr><td>Permisos sin Goce</td><td>${estadisticas.permiso_sin_goce}</td></tr>
+                                    <tr><td>Turnos Extras</td><td>${estadisticas.turno_extra}</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1355,16 +1407,7 @@
             `;
            
             proyeccion.forEach(p => {
-                let claseEstado;
-                if (p.estado.includes('Trabajando')) claseEstado = 'estado-trabajando';
-                else if (p.estado.includes('Libre')) claseEstado = 'estado-libre';
-                else if (p.estado.includes('Licencia')) claseEstado = 'estado-licencia';
-                else if (p.estado.includes('Vacacion')) claseEstado = 'estado-vacacion';
-                else if (p.estado.includes('Falta')) claseEstado = 'estado-falta';
-                else if (p.estado.includes('Permiso con Goce')) claseEstado = 'estado-permiso-con-goce';
-                else if (p.estado.includes('Permiso sin Goce')) claseEstado = 'estado-permiso-sin-goce';
-                else if (p.estado.includes('Turno Extra')) claseEstado = 'estado-turno-extra';
-                else claseEstado = 'estado-libre';
+                const claseEstado = getEstadoClass(p.estado);
                
                 html += `<tr>
                     <td>${p.fecha}</td>
@@ -1454,16 +1497,7 @@
                 html += `<tr><td><strong><i class="fas fa-user-shield"></i> ${guardia.nombre}</strong><br><small>${guardia.tipoRol}</small></td>`;
                
                 proyecciones[guardia.nombre].forEach(p => {
-                    let claseEstado;
-                    if (p.estado.includes('Trabajando')) claseEstado = 'estado-trabajando';
-                    else if (p.estado.includes('Libre')) claseEstado = 'estado-libre';
-                    else if (p.estado.includes('Licencia')) claseEstado = 'estado-licencia';
-                    else if (p.estado.includes('Vacacion')) claseEstado = 'estado-vacacion';
-                    else if (p.estado.includes('Falta')) claseEstado = 'estado-falta';
-                    else if (p.estado.includes('Permiso con Goce')) claseEstado = 'estado-permiso-con-goce';
-                    else if (p.estado.includes('Permiso sin Goce')) claseEstado = 'estado-permiso-sin-goce';
-                    else if (p.estado.includes('Turno Extra')) claseEstado = 'estado-turno-extra';
-                    else claseEstado = 'estado-libre';
+                    const claseEstado = getEstadoClass(p.estado);
                    
                     const icono = p.estado.includes('Trabajando') || p.estado.includes('Turno Extra') ? '<i class="fas fa-shield-alt"></i>' : '<i class="fas fa-home"></i>';
                     html += `<td><span class="${claseEstado}">${icono} ${p.estado}</span></td>`;
@@ -1504,23 +1538,30 @@
             let data = [];
            
             // Crear encabezados
-            let headers = { Guardia: 'Guardia' };
-            fechas.forEach(fecha => {
-                headers[fecha] = fecha;
-            });
-            data.push(headers);
+            let headers = ['Guardia', ...fechas];
+            data.push(headers.join(','));
             // Crear filas de datos
             guardiasInst.forEach(guardia => {
-                let row = { Guardia: guardia.nombre };
+                let row = [guardia.nombre];
                 const proyeccion = generarProyeccion(guardia, desde, hasta);
                
                 proyeccion.forEach(p => {
-                    row[p.fecha] = p.estado;
+                    row.push(p.estado);
                 });
                
-                data.push(row);
+                data.push(row.map(value => `"${value}"`).join(','));
             });
-            exportarCSV(data, `proyeccion_${instalacionNombre}_${desde}_${hasta}.csv`);
+            const csvContent = data.join('\n');
+           
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `proyeccion_${instalacionNombre}_${desde}_${hasta}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
         // Función para mostrar notificaciones
         function showNotification(message, type) {
